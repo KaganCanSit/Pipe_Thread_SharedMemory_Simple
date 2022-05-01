@@ -1,9 +1,14 @@
 #include <stdio.h>          //Temel C Komutlarini Kullanabilmek Icin Ekledigimiz Header Dosyasi
+#include <stdlib.h>
 #include <unistd.h>         //Fork ve pid_t Tanimlarini Kullanabilmek Icin Ekledigimiz Header Dosyasi
 #include <string.h>         //String(Metin) Islemleri Icin Kullandigimiz Header Dosyasi
 #include <sys/types.h>      //wait() Fonksiyonu
 #include <sys/wait.h>
 #include <pthread.h>        //Thread Tanimlayabilmek Ve Kullanabilmemiz Icin Header
+#include <fcntl.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
 
 
 //Pipe icin global degiskenler
@@ -103,6 +108,20 @@ char* PipeRead(int fd[], char*msg)
     return msg;
 }
 
+void substring(char* sub_string,char text[],int len, int quarter)
+{
+    int start=((quarter-1)*(len/4));
+    int end=start+len/4;
+
+    int j=0, i=0;
+    for(i=start; i<end; i++)
+    {
+        sub_string[j]=text[i];
+        j++;
+    }
+    printf("sub %s\n",sub_string);
+}
+
 int main()
 {
     char write_msg[BUFFER_SIZE], read_msg[BUFFER_SIZE], tempText[BUFFER_SIZE];
@@ -134,6 +153,17 @@ int main()
         //Sifrelenecek olan metini ve kaydirma degerini kullanicidan aliyoruz.
         getText(write_msg);
         PipeWrite(fd,write_msg);
+
+        const int SIZE = 400;
+        const char *name ="OS";
+
+        int shm_fd;
+        void *ptr;
+        shm_fd=shm_open(name,O_RDONLY, 0666);
+        ftruncate(shm_fd,SIZE);
+        ptr = mmap(0,SIZE,PROT_WRITE,MAP_SHARED,shm_fd,0);
+        printf("Son: %s",(char *)ptr);
+        shm_unlink(name);
     }
     //Child Process (pid=0)
     else
@@ -146,12 +176,25 @@ int main()
         for(int i=0;i<4;i++)
         {
             strcpy(part[i].text, tempText);
+            printf("%s",part[i].text);
             part[i].choise = 1;
         }
 
         pthread_create(&(tid[0]), NULL, CrypteOperations, (void *)&part[0]);
         pthread_join(tid[0], NULL);
+        printf("%s",part[0].text);
 
+        
+        const int SIZE = 400;
+        const char *name ="OS";
+        const char *message = part[0].text;
+        int shm_fd;
+        void *ptr;
+        shm_fd=shm_open(name,O_CREAT | O_RDWR, 0666);
+        ftruncate(shm_fd, SIZE);
+        ptr = mmap(0,SIZE,PROT_WRITE,MAP_SHARED,shm_fd,0);
+        sprintf(ptr,"Mesaj: %s",message);
+        ptr += strlen(message);
     }
     return 0;
 }
