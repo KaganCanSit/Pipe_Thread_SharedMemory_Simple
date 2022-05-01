@@ -122,6 +122,25 @@ void substring(char* sub_string,char text[],int len, int quarter)
     printf("sub %s\n",sub_string);
 }
 
+void sharedMemorySender(void* shared_memory, char* buff, int shmid)
+{
+    shmid = shmget((key_t)1122,1024,0666|IPC_CREAT);
+    printf("KEy of shared memory is: %d\n",shmid);
+    shared_memory = shmat(shmid,NULL,0);
+    printf("Process attached at %p\n",shared_memory);
+    strcpy(shared_memory,buff);
+    printf("You wrote: %s\n",(char *)shared_memory);
+}
+
+void sharedMemoryReceiver(void *shared_memory,int shmid)
+{
+    shmid = shmget((key_t)1122,1024,0666);
+    printf("KEy of shared memory is%d\n",shmid);
+    shared_memory = shmat(shmid,NULL,0);
+    printf("Process attached at:%p\n",shared_memory);
+    printf("Data read from shared memory is: %s\n",(char *)shared_memory);
+}
+
 int main()
 {
     char write_msg[BUFFER_SIZE], read_msg[BUFFER_SIZE], tempText[BUFFER_SIZE];
@@ -130,6 +149,12 @@ int main()
     //Pipe ve Thread islemi icin tanim.
     int fd[2];
     pid_t pid; 
+
+    //Shared Memory
+    void *shared_memory;
+    char buff[BUFFER_SIZE];
+    int shmid;
+
 
     //Pipe'in Kontrolu
     if(pipe(fd)==-1)
@@ -153,17 +178,7 @@ int main()
         //Sifrelenecek olan metini ve kaydirma degerini kullanicidan aliyoruz.
         getText(write_msg);
         PipeWrite(fd,write_msg);
-
-        const int SIZE = 400;
-        const char *name ="OS";
-
-        int shm_fd;
-        void *ptr;
-        shm_fd=shm_open(name,O_RDONLY, 0666);
-        ftruncate(shm_fd,SIZE);
-        ptr = mmap(0,SIZE,PROT_WRITE,MAP_SHARED,shm_fd,0);
-        printf("Son: %s",(char *)ptr);
-        shm_unlink(name);
+        sharedMemoryReceiver(shared_memory,shmid);
     }
     //Child Process (pid=0)
     else
@@ -184,17 +199,8 @@ int main()
         pthread_join(tid[0], NULL);
         printf("%s",part[0].text);
 
-        
-        const int SIZE = 400;
-        const char *name ="OS";
-        const char *message = part[0].text;
-        int shm_fd;
-        void *ptr;
-        shm_fd=shm_open(name,O_CREAT | O_RDWR, 0666);
-        ftruncate(shm_fd, SIZE);
-        ptr = mmap(0,SIZE,PROT_WRITE,MAP_SHARED,shm_fd,0);
-        sprintf(ptr,"Mesaj: %s",message);
-        ptr += strlen(message);
+        strcpy(buff,part[0].text);
+        sharedMemorySender(shared_memory, buff ,shmid);
     }
     return 0;
 }
