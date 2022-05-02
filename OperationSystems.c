@@ -72,8 +72,6 @@ void* CrypteOperations(void *arg)
         i++;
     }
     strcpy(tdata->text,text);
-    printf("\n%s\n",tdata->text);
-    pthread_exit(NULL);
 }
 
 //Pipe Yazma Ve Okuma Islemleri
@@ -168,21 +166,15 @@ int main()
         //Sifrelenecek olan metini ve kaydirma degerini kullanicidan aliyoruz.
         getText(write_msg);
         PipeWrite(fd,write_msg);
-        char* lastText = sharedMemoryReceiver(shared_memory,shmid);
-               
-        strcpy(part[0].text, lastText);
+
+        //Shared Memory'den Alip Sifrelemeyi Cozuyoruz.
+        strcpy(part[0].text, sharedMemoryReceiver(shared_memory,shmid));
         part[0].choise = 0;
-        printf("Son: %s",part[0].text);
+        printf("\nSifrelenmis Veri: %s",part[0].text);
 
         CrypteOperations(part[0].text);
-        printf("---> %s",part[0].text);
-        
-        /*
-        strcpy(part[0].text,lastText);
-        part[0].choise = 0;
-        CrypteOperations(part[0].text);
-        printf("%s",part[0].text);
-        */
+        printf("\nSifre Cozulmus Veri: %s",part[0].text);
+        pthread_exit(NULL);
 
     }
     //Child Process (pid=0)
@@ -222,6 +214,7 @@ int main()
         pthread_join(tid[0], NULL);
 
         sharedMemorySender(shared_memory, part[0].text ,shmid);
+        pthread_exit(NULL);
     }
     return 0;
 }
