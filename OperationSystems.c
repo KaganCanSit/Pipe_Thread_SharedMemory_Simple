@@ -40,18 +40,6 @@ void getText(char temp[])
     }
 }
 
-/*
-//Kullanicidan Oteleme Degerini Aliyoruz.
-void getOffset()
-{
-    int deger = 0;
-    printf("Sifre Degeri Belirleyiniz: ");
-    scanf("%d",&deger);
-    offset %= 25;
-}
-*/
-
-
 //Disaridan aldigi metin verisini, ikinci parametre olarak aldigimiz kaydirma sayisina  ve operasyon turune gore Sezar Sifrelemesi uygular veya cozer.
 void* CrypteOperations(void *arg)
 { 
@@ -84,10 +72,11 @@ void* CrypteOperations(void *arg)
         i++;
     }
     strcpy(tdata->text,text);
+    printf("\n%s\n",tdata->text);
     pthread_exit(NULL);
 }
 
-
+//Pipe Yazma Ve Okuma Islemleri
 void PipeWrite(int fd[],char * msg)
 {
     close(fd[READ_END]);
@@ -95,7 +84,7 @@ void PipeWrite(int fd[],char * msg)
     //printf("Parent Process Pipe'a veri yazdi.\n");
     close(fd[WRITE_END]);
     wait(NULL);
-    //printf("Parent Process Sonlandi!\n")    ;
+    //printf("Parent Process Sonlandi!\n");
 }
 
 char* PipeRead(int fd[], char*msg)
@@ -122,23 +111,24 @@ void substring(char* sub_string,char text[],int len, int quarter)
     printf("sub %s\n",sub_string);
 }
 
+//Shared Memory Yazma Ve Okuma
 void sharedMemorySender(void* shared_memory, char* buff, int shmid)
 {
     shmid = shmget((key_t)1122,1024,0666|IPC_CREAT);
-    printf("KEy of shared memory is: %d\n",shmid);
+    printf("Key of shared memory is: %d\n",shmid);
     shared_memory = shmat(shmid,NULL,0);
     printf("Process attached at %p\n",shared_memory);
     strcpy(shared_memory,buff);
     printf("You wrote: %s\n",(char *)shared_memory);
 }
-
-void sharedMemoryReceiver(void *shared_memory,int shmid)
+char* sharedMemoryReceiver(void *shared_memory,int shmid)
 {
     shmid = shmget((key_t)1122,1024,0666);
-    printf("KEy of shared memory is%d\n",shmid);
+    printf("Key of shared memory is%d\n",shmid);
     shared_memory = shmat(shmid,NULL,0);
     printf("Process attached at:%p\n",shared_memory);
     printf("Data read from shared memory is: %s\n",(char *)shared_memory);
+    return (char *)shared_memory;
 }
 
 int main()
@@ -146,15 +136,14 @@ int main()
     char write_msg[BUFFER_SIZE], read_msg[BUFFER_SIZE], tempText[BUFFER_SIZE];
     int pass=0;
 
-    //Pipe ve Thread islemi icin tanim.
+    //Pipe ve Thread Islemi Icin Tanimlar
     int fd[2];
     pid_t pid; 
 
-    //Shared Memory
+    //Shared Memory Kullanimi Icin Gerekli Tanimlar
     void *shared_memory;
     char buff[BUFFER_SIZE];
     int shmid;
-
 
     //Pipe'in Kontrolu
     if(pipe(fd)==-1)
@@ -172,13 +161,29 @@ int main()
         fprintf(stderr,"Fork Failed!");
         return 1;
     }
+    
     //Parent Process (pid=1)
     if(pid>0)
     {
         //Sifrelenecek olan metini ve kaydirma degerini kullanicidan aliyoruz.
         getText(write_msg);
         PipeWrite(fd,write_msg);
-        sharedMemoryReceiver(shared_memory,shmid);
+        char* lastText = sharedMemoryReceiver(shared_memory,shmid);
+               
+        strcpy(part[0].text, lastText);
+        part[0].choise = 0;
+        printf("Son: %s",part[0].text);
+
+        CrypteOperations(part[0].text);
+        printf("---> %s",part[0].text);
+        
+        /*
+        strcpy(part[0].text,lastText);
+        part[0].choise = 0;
+        CrypteOperations(part[0].text);
+        printf("%s",part[0].text);
+        */
+
     }
     //Child Process (pid=0)
     else
@@ -186,21 +191,37 @@ int main()
         //Thread Olusturuyoruz
         pthread_t tid[4];
 
+        
         strcpy(tempText, PipeRead(fd,read_msg));
+        /*int len = strlen(tempText);
+        char* divide;
 
+        int start=0, end=len/4;
         for(int i=0;i<4;i++)
         {
-            strcpy(part[i].text, tempText);
-            printf("%s",part[i].text);
-            part[i].choise = 1;
+            for(int a=start;a<end;a++)
+            {
+                divide += tempText[i];
+            }
+            start += end;
+            if(start != (len/4)*3)
+                end += len/4;
+            else
+                end += len/4+1;
+            
         }
+        printf("%s",divide);
+        printf("\n\n%s\n%s\n%s\n%s\n\n",part[0].text,part[1].text,part[2].text,part[3].text);
+        */
+
+        strcpy(part[0].text,tempText);
+        printf("Once: %s",part[0].text);
+        part[0].choise=1;
 
         pthread_create(&(tid[0]), NULL, CrypteOperations, (void *)&part[0]);
         pthread_join(tid[0], NULL);
-        printf("%s",part[0].text);
 
-        strcpy(buff,part[0].text);
-        sharedMemorySender(shared_memory, buff ,shmid);
+        sharedMemorySender(shared_memory, part[0].text ,shmid);
     }
     return 0;
 }
