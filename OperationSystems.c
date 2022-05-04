@@ -1,15 +1,10 @@
 #include <stdio.h>          //Temel C Komutlarini Kullanabilmek Icin Ekledigimiz Header Dosyasi
-#include <stdlib.h>
+#include <stdlib.h>         //exit Fonksiyonu Icin Header Dosyasi
 #include <unistd.h>         //Fork ve pid_t Tanimlarini Kullanabilmek Icin Ekledigimiz Header Dosyasi
 #include <string.h>         //String(Metin) Islemleri Icin Kullandigimiz Header Dosyasi
-#include <sys/types.h>      //wait() Fonksiyonu
-#include <sys/wait.h>
+#include <sys/wait.h>       //wait() Fonksiyonu
 #include <pthread.h>        //Thread Tanimlayabilmek Ve Kullanabilmemiz Icin Header
-#include <fcntl.h>
-#include <sys/shm.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-
+#include <sys/shm.h>        //Shared Memory Kullanimi Icin
 
 //Pipe icin global degiskenler
 #define BUFFER_SIZE 400
@@ -19,7 +14,7 @@ int offset = 11;
 
 //Thread Kullanimini Kolaylastirmak Icin Struct YApisi
 typedef struct thread_data {
-   char text[400];
+   char text[100];
    int choise;
 }thread_data;
 
@@ -34,9 +29,10 @@ void getText(char temp[])
     printf("\nPlease Enter The Text To Be Encrypted:");
     fgets(temp,400,stdin);
 
-    if (strlen(temp) > 400)
+    if (strlen(temp) > 400 || strlen(temp)<5)
     {
         printf("You Have Exceeded The Maximum Chracter(400) Limit! Try Again.");
+        exit(0);
     }
 }
 
@@ -95,20 +91,6 @@ char* PipeRead(int fd[], char*msg)
     return msg;
 }
 
-void substring(char* sub_string,char text[],int len, int quarter)
-{
-    int start=((quarter-1)*(len/4));
-    int end=start+len/4;
-
-    int j=0, i=0;
-    for(i=start; i<end; i++)
-    {
-        sub_string[j]=text[i];
-        j++;
-    }
-    printf("sub %s\n",sub_string);
-}
-
 //Shared Memory Yazma Ve Okuma
 void sharedMemorySender(void* shared_memory, char* buff, int shmid)
 {
@@ -119,6 +101,7 @@ void sharedMemorySender(void* shared_memory, char* buff, int shmid)
     strcpy(shared_memory,buff);
     printf("You wrote: %s\n",(char *)shared_memory);
 }
+
 char* sharedMemoryReceiver(void *shared_memory,int shmid)
 {
     shmid = shmget((key_t)1122,1024,0666);
@@ -128,6 +111,7 @@ char* sharedMemoryReceiver(void *shared_memory,int shmid)
     printf("Data read from shared memory is: %s\n",(char *)shared_memory);
     return (char *)shared_memory;
 }
+
 
 int main()
 {
@@ -183,28 +167,11 @@ int main()
         //Thread Olusturuyoruz
         pthread_t tid[4];
 
-        
+        //Pipe uzerinden veriyi okuduk ve tempText icerisine attik.
         strcpy(tempText, PipeRead(fd,read_msg));
-        /*int len = strlen(tempText);
-        char* divide;
 
-        int start=0, end=len/4;
-        for(int i=0;i<4;i++)
-        {
-            for(int a=start;a<end;a++)
-            {
-                divide += tempText[i];
-            }
-            start += end;
-            if(start != (len/4)*3)
-                end += len/4;
-            else
-                end += len/4+1;
-            
-        }
-        printf("%s",divide);
-        printf("\n\n%s\n%s\n%s\n%s\n\n",part[0].text,part[1].text,part[2].text,part[3].text);
-        */
+
+        //Bölümleme ve threadleri atama yapılacak. Daha sonra threadler şifreledikten sonra strcut tanımlı partlar içerisine atilacak.
 
         strcpy(part[0].text,tempText);
         printf("Once: %s",part[0].text);
