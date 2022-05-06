@@ -10,7 +10,7 @@
 #define BUFFER_SIZE 400
 #define READ_END 0
 #define WRITE_END 1
-int offset = 11;
+int offset = 7;
 
 //Thread Kullanimini Kolaylastirmak Icin Struct YApisi
 typedef struct thread_data {
@@ -157,11 +157,6 @@ void textPartition(char* tempText)
                 addArray(&part[3],tempText[a]);
             a++;
         }
-
-        printf("\n\n%s\n",part[0].text);
-        printf("%s\n",part[1].text);
-        printf("%s\n",part[2].text);
-        printf("%s",part[3].text);
 }
 
 //Shared Memory Yazma Ve Okuma
@@ -176,7 +171,7 @@ char* sharedMemoryReceiver(void *shared_memory,int shmid)
 {
     shmid = shmget((key_t)1122,1024,0666);
     shared_memory = shmat(shmid,NULL,0);
-    //printf("\nRead Data Shared Memory Area: %s", (char *)shared_memory);
+    printf("\nRead Data Shared Memory Area: %s", (char *)shared_memory);
     return (char *)shared_memory;
 }
 
